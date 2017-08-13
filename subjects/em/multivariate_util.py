@@ -51,11 +51,13 @@ class multivariate_t:
         self.sigma = sigma
         self.df = df
     
+    # probability density function
     def pdf(self, x):
+        "Probability of a data point given the current parameters"
         if type(x) != np.ndarray:
             x = np.array(x)
         if not hasattr(self, 'p') or self.p != x.shape[0]:
-            self.p = x.shape[0]
+            self.p = x.shape[1]
             self.gamma1 = gamma(self.df/2.) ** -1
             self.gamma2 = gamma((self.df+self.p)/2.)
             self.const = 1./np.sqrt((2.*np.pi)**self.p * det(self.sigma))
@@ -66,3 +68,6 @@ class multivariate_t:
         delta = np.array(delta)
 
         return self.gamma1 * self.gamma2 * self.const * (1+delta/self.df) ** (-(self.df+self.p)/2.)
+    
+    def __repr__(self):
+        return 'mu: %s;\n df: %s;\n sigma: %s' % (self.mu, self.df, self.sigma)
