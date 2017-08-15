@@ -51,6 +51,10 @@ class multivariate_t:
         self.sigma = sigma
         self.df = df
     
+    def __delta(self, x, mu):
+        for _ in x-mu:
+            yield _
+    
     # probability density function
     def pdf(self, x):
         "Probability of a data point given the current parameters"
@@ -61,12 +65,13 @@ class multivariate_t:
             self.gamma1 = gamma(self.df/2.) ** -1
             self.gamma2 = gamma((self.df+self.p)/2.)
             self.const = 1./np.sqrt((2.*np.pi)**self.p * det(self.sigma))
-                
+        
         delta = []
-        for _ in x-self.mu:
-            delta.append(_.dot(inv(self.sigma)).dot(_))
+        inv_sigma = inv(self.sigma)
+        for _ in self.__delta(x, self.mu):
+            delta.append(_.dot(inv_sigma).dot(_))
         delta = np.array(delta)
-
+        
         return self.gamma1 * self.gamma2 * self.const * (1+delta/self.df) ** (-(self.df+self.p)/2.)
     
     def __repr__(self):
