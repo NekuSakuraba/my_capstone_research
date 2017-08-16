@@ -71,7 +71,7 @@ class multivariate_t:
     
     def __delta(self, x, mu):
         for _ in x-mu:
-            yield _
+            yield _.reshape(1, -1)
     
     # probability density function
     def pdf(self, x):
@@ -80,17 +80,20 @@ class multivariate_t:
             x = np.array(x)
         if not hasattr(self, 'p') or self.p != x.shape[0]:
             self.p = x.shape[1]
-            self.gamma1 = gamma(self.df/2.) ** -1
-            self.gamma2 = gamma((self.df+self.p)/2.)
-            self.const = 1./np.sqrt((2.*np.pi)**self.p * det(self.sigma))
+            self.const = (self.df*np.pi)**(self.p/2.)
         
         delta = []
         inv_sigma = inv(self.sigma)
         for _ in self.__delta(x, self.mu):
-            delta.append(_.dot(inv_sigma).dot(_))
+            delta.append(_.dot(inv_sigma).dot(_.T))
         delta = np.array(delta)
         
-        return self.gamma1 * self.gamma2 * self.const * (1+delta/self.df) ** (-(self.df+self.p)/2.)
+        top = gamma((self.df+self.p)/2.) * np.sqrt(det(self.sigma))**-1
+        bottom = gamma(self.df/2.) * self.const
+        
+        bottom *= (1+delta/self.df) ** ((self.df+self.p)/2.)
+        
+        return top/bottom
     
     def __repr__(self):
         return 'mu: %s;\n df: %s;\n sigma: %s' % (self.mu, self.df, self.sigma)
@@ -197,10 +200,11 @@ class MultivariateTMixture:
             self.pi[idx] = sum(self.weights[idx])/len(self.weights[idx])
     
     def pdf(self, X):
-        result = []
+        result = 0
         for idx, mix in enumerate(self.mixes):
-            result.append(mix.pdf(X) * self.pi)
-
+            result += mix.pdf(X) * self.pi[idx]
+        return result
+    
     def log_likelihood(self, X):
         likelihood = 0
         for _ in self.pi:
