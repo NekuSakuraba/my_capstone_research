@@ -110,7 +110,7 @@ class MultivariateTMixture:
     def fit(self, X):
         self.p = X.shape[1]
         
-        clf = KMeans(n_clusters=self.p)
+        clf = KMeans(n_clusters=self.n_components)
         clf.fit(X)
         
         xmin = get_random(X)
