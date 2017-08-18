@@ -142,18 +142,7 @@ class MultivariateTMixture:
             _ = np.array(_)
             self.u[idx] = (self.mixes[idx].df + self.p)/(self.mixes[idx].df + _)
             self.u[idx] = self.u[idx].reshape(-1, 1)
-            
-    def __calc_u2(self, X):
-        # E-Step: Calculating u
-        self.u = {}
-        for idx in range(self.n_components):
-            _ = []
-            for delta in (X-self.mixes[idx].mu):
-                _.append(delta.dot(inv(self.mixes[idx].sigma)).dot(delta))
-            _ = np.array(_)
-            self.u[idx] = (self.mixes[idx].df + self.p)/(self.mixes[idx].df + _)
-            self.u[idx] = self.u[idx].reshape(-1, 1)
-    
+
     def e_step1(self, X):
         self.__calc_tau(X)
         self.__calc_u(X)
