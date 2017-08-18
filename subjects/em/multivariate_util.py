@@ -7,6 +7,7 @@ from scipy.special import gamma, digamma
 from scipy.linalg import inv, det
 
 from sklearn.cluster import KMeans
+import scipy.linalg.blas as FB
 
 def get_random(X):
     """Get a random sample from X.
@@ -68,11 +69,11 @@ class multivariate_t:
         self.mu = mu
         self.sigma = sigma
         self.df = df
-    
+
     def __delta(self, x, mu):
-        for _ in x-mu:
-            yield _.reshape(1, -1)
-    
+        for idx, _ in enumerate(x-mu):
+            yield idx, _.reshape(-1, 1)
+
     # probability density function
     def pdf(self, x):
         "Probability of a data point given the current parameters"
@@ -81,12 +82,14 @@ class multivariate_t:
         if not hasattr(self, 'p') or self.p != x.shape[0]:
             self.p = x.shape[1]
             self.const = (self.df*np.pi)**(self.p/2.)
-        
-        delta = []
-        inv_sigma = inv(self.sigma)
-        for _ in self.__delta(x, self.mu):
-            delta.append(_.dot(inv_sigma).dot(_.T))
-        delta = np.array(delta)
+
+        delta = x - self.mu
+        delta = delta.dot(inv(self.sigma))
+
+        result = []
+        for idx, _ in self.__delta(x, self.mu):
+            result.append(delta[idx].reshape(1, -1).dot(_)[0])
+        delta = np.array(result)
         
         top = gamma((self.df+self.p)/2.) * np.sqrt(det(self.sigma))**-1
         bottom = gamma(self.df/2.) * self.const
@@ -153,24 +156,25 @@ class MultivariateTMixture:
     def cm_step1(self, X):
         for idx, _ in enumerate(self.mixes):
             # Assigning mu and cov
-            self.mixes[idx].mu, self.mixes[idx].sigma = self.__estimate_parameters(X, self.u[idx], self.weights[idx])
+            self.mixes[idx].mu    = self.__mu(X, self.u[idx], self.weights[idx])
+            self.mixes[idx].sigma = self.__cov(X, self.u[idx], self.weights[idx], self.mixes[idx].mu)
 
     def __delta(self, X, mu):
         for idx, _ in enumerate(X - mu):
             yield idx, _.reshape(-1, 1)
 
-    def __estimate_parameters(self, X, u, tau):
+    def __mu(self, X, u, tau):
         tau_u = tau * u
-        mu_ = (tau_u * X).sum(axis=0) / tau_u.sum() # Here I could improve somehow...
-        
-        cov_ = np.array([[0,0], [0,0]], dtype=np.float32)
+        return (tau_u * X).sum(axis=0) / tau_u.sum()  # Here I could improve somehow...
+
+    def __cov(self, X, u, tau, mu_):
+        cov_ = []
         for idx, delta in self.__delta(X, mu_):
-            #delta = delta.reshape(-1, 1)
-            cov_ += (tau[idx] * u[idx] * delta).dot(delta.T)
-        
-        cov_ /= tau.sum()
-        
-        return mu_, cov_
+            result = FB.dgemm(alpha=1.0, a=(tau[idx] * u[idx] * delta), b=delta, trans_b=True)
+            cov_.append(result)
+        cov_ = np.array(cov_)
+
+        return cov_.sum(axis=0) / tau.sum()
 
     def __estimate_dof(self, v, u, tau):
         return -digamma(v/2.) + log(v/2.) + (tau * (log(u) - u)).sum()/tau.sum() + 1 + (digamma((v+self.p)/2.)-log((v+self.p)/2.))
