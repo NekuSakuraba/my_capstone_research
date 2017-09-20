@@ -134,8 +134,8 @@ class MultivariateTMixture:
             #             print '\nu'
             #             print u
 
-            print '\nmean'
-            print self.means
+            # print '\nmean'
+            # print self.means
 
             u = self._e_step_2(X)
             #             print '\nu'
