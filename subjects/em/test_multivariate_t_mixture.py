@@ -23,14 +23,9 @@ X2 = multivariate_t_rvs(mu, cov, 29, 100)
 
 X = np.concatenate([X1, X2])
 
-t = MultivariateTMixture(2, 16)
+t = MultivariateTMixture(2, 32)
 t.fit(X)
 
-print 'df'
-print t.df
-
-print '\nsigma'
-print t.sigmas
-
-print '\nmu'
-print t.means
+arr = range(len(t.likelihood))
+plt.scatter(arr, t.likelihood)
+plt.show()

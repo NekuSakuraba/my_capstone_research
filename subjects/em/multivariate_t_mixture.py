@@ -15,9 +15,9 @@ class MultivariateTMixture:
         n_samples, n_features = X.shape
 
         # initializing tau
-        tau = np.ones((n_samples, n_components)) * .5
-        # label = KMeans(n_clusters=n_components, random_state=self.random_state).fit(X).labels_
-        # tau[np.arange(n_samples), label] = 1
+        tau = np.ones((n_samples, n_components))
+        label = KMeans(n_clusters=n_components, random_state=self.random_state).fit(X).labels_
+        tau[np.arange(n_samples), label] = 1
 
         # initializng u
         u = np.ones((n_samples, self.n_components))
@@ -62,10 +62,6 @@ class MultivariateTMixture:
         sigma = self._estimate_covariances(X, mu, pi, tau, u)
 
         return pi, mu, sigma
-
-    #     def _estimate_dof(self, tau, u):
-    #         return -digamma(self.df * .5) + log(self.df *.5) \
-    #                 + (tau * (log(u) - u)).sum()/tau.sum() + 1 + (digamma((v+self.p)/2.)-log((v+self.p)/2.))
 
     def _compute_q1(self, tau):
         return tau * np.log(self.pi)
@@ -129,22 +125,15 @@ class MultivariateTMixture:
             log_prob_norm, tau, u = self._e_step_1(X, tau, u)
             self._cm_step_1(X, tau, u)
 
-            #             print '1#'
-            #             print tau
-            #             print '\nu'
-            #             print u
-
-            # print '\nmean'
-            # print self.means
+            print '\n'
+            print self.means
 
             u = self._e_step_2(X)
-            #             print '\nu'
-            #             print u
             self._cm_step_2(np.exp(tau), u)
 
             likelihood.append(np.mean(log_prob_norm))
             tau = np.exp(tau)
-        self.likelihoodd = likelihood
+        self.likelihood = likelihood
 
     def _e_step_1(self, X, tau, u):
         """ E-step 01 - It calculates the loglikelihood under the current parameters
@@ -170,13 +159,18 @@ class MultivariateTMixture:
         q3 = self._compute_q3(tau, u, mahalanobis)
 
         weighted_log_prob = q1 + q2 + q3
-        log_prob_norm = logsumexp(weighted_log_prob, axis=1)
+
+        # logexpsum trick?
+        xmin = np.array([min(x) for x in weighted_log_prob ]).reshape(-1, 1)
+
+        log_prob_norm = logsumexp(weighted_log_prob-xmin, axis=1)[:, np.newaxis] + xmin
+        log_resp = weighted_log_prob - log_prob_norm
 
         # estimating 'u'
         new_u = self._compute_u(mahalanobis)
 
         # returning tau, u
-        return log_prob_norm, weighted_log_prob - log_prob_norm[:, np.newaxis], new_u
+        return log_prob_norm, log_resp, new_u
 
     def _cm_step_1(self, X, tau, u):
         n_samples, _ = X.shape
